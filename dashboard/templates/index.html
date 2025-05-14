@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">YAICON Dashboard</h1>
+    <p class="lead">Drug Sensitivity Prediction using Triple-Omics Data (GEP, CNV, MUT)</p>
+    
+    <div class="row mt-4">
+        <!-- Model Overview Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-project-diagram me-2"></i> Model Overview
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">PASO_GEP_CNV_MUT</h5>
+                    <p class="card-text">
+                        A deep learning model for drug sensitivity prediction using multi-omics data:
+                    </p>
+                    <ul>
+                        <li><strong>GEP:</strong> Gene Expression Profiles</li>
+                        <li><strong>CNV:</strong> Copy Number Variations</li>
+                        <li><strong>MUT:</strong> Mutation Data</li>
+                        <li><strong>Drug:</strong> SMILES representation</li>
+                    </ul>
+                    <p>The model uses attention mechanisms to learn interactions between drug molecules and omics data.</p>
+                    <a href="{{ url_for('model_info', fold_num=folds[0] if folds else 1) }}" class="btn btn-primary">
+                        <i class="fas fa-info-circle me-2"></i> View Model Details
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Available Folds Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-layer-group me-2"></i> Available Folds
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Cross-Validation Folds</h5>
+                    <p class="card-text">
+                        The model has been trained using 10-fold cross-validation. Select a fold to view its details:
+                    </p>
+                    <div class="list-group">
+                        {% if folds %}
+                            {% for fold in folds %}
+                                <a href="{{ url_for('model_info', fold_num=fold) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    Fold {{ fold }}
+                                    <span class="badge bg-primary rounded-pill">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-warning">
+                                No fold data available. Please check the model directory.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-2">
+        <!-- Data Explorer Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-database me-2"></i> Data Explorer
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Explore Dataset</h5>
+                    <p class="card-text">
+                        View and analyze the triple-omics datasets and drug sensitivity data used for training and testing.
+                    </p>
+                    <a href="{{ url_for('data_explorer') }}" class="btn btn-primary">
+                        <i class="fas fa-table me-2"></i> Explore Data
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-2"></i> Results
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Model Performance</h5>
+                    <p class="card-text">
+                        View the performance metrics and predictions from the trained model across different folds.
+                    </p>
+                    <a href="{{ url_for('results', fold_num=folds[0] if folds else 1) }}" class="btn btn-primary">
+                        <i class="fas fa-chart-bar me-2"></i> View Results
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

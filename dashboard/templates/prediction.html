@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block title %}Make Predictions{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Drug Sensitivity Prediction</h1>
+    
+    <div class="row">
+        <!-- Prediction Form -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-vial me-2"></i> Make a Prediction
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-3" id="predictionTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="sample-tab" data-bs-toggle="tab" data-bs-target="#sample" type="button" role="tab" aria-controls="sample" aria-selected="true">
+                                Use Sample Data
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="custom-tab" data-bs-toggle="tab" data-bs-target="#custom" type="button" role="tab" aria-controls="custom" aria-selected="false">
+                                Upload Custom Data
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="predictionTabsContent">
+                        <!-- Sample Data Tab -->
+                        <div class="tab-pane fade show active" id="sample" role="tabpanel" aria-labelledby="sample-tab">
+                            <form id="sample-prediction-form">
+                                <div class="mb-3">
+                                    <label for="fold-select" class="form-label">Select Model Fold</label>
+                                    <select class="form-select" id="fold-select" name="fold_num">
+                                        {% for fold in folds %}
+                                            <option value="{{ fold }}" {% if fold == selected_fold %}selected{% endif %}>Fold {{ fold }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="drug-select" class="form-label">Select Drug</label>
+                                    <select class="form-select" id="drug-select" name="drug_name">
+                                        {% for drug in drug_list %}
+                                            <option value="{{ drug }}">{{ drug }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="cell-line-select" class="form-label">Select Cell Line</label>
+                                    <select class="form-select" id="cell-line-select" name="cell_line">
+                                        {% for cell_line in cell_line_list %}
+                                            <option value="{{ cell_line }}">{{ cell_line }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <input type="hidden" name="prediction_type" value="sample">
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-calculator me-2"></i> Make Prediction
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Custom Data Tab -->
+                        <div class="tab-pane fade" id="custom" role="tabpanel" aria-labelledby="custom-tab">
+                            <form id="custom-prediction-form">
+                                <div class="mb-3">
+                                    <label for="fold-select-custom" class="form-label">Select Model Fold</label>
+                                    <select class="form-select" id="fold-select-custom" name="fold_num">
+                                        {% for fold in folds %}
+                                            <option value="{{ fold }}" {% if fold == selected_fold %}selected{% endif %}>Fold {{ fold }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="smiles-input" class="form-label">SMILES String</label>
+                                    <input type="text" class="form-control" id="smiles-input" name="smiles" placeholder="Enter SMILES string">
+                                    <div class="form-text">Example: CC(=O)OC1=CC=CC=C1C(=O)O (Aspirin)</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="gep-file" class="form-label">GEP Data File (CSV)</label>
+                                    <input type="file" class="form-control" id="gep-file" name="gep_file">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="cnv-file" class="form-label">CNV Data File (CSV)</label>
+                                    <input type="file" class="form-control" id="cnv-file" name="cnv_file">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="mut-file" class="form-label">MUT Data File (CSV)</label>
+                                    <input type="file" class="form-control" id="mut-file" name="mut_file">
+                                </div>
+                                
+                                <input type="hidden" name="prediction_type" value="custom">
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-calculator me-2"></i> Make Prediction
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Prediction Results -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-2"></i> Prediction Results
+                </div>
+                <div class="card-body">
+                    <div id="prediction-results">
+                        <div class="text-center py-5">
+                            <p class="text-muted">Make a prediction to see results here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Explanation -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-2"></i> About Drug Sensitivity Prediction
+                </div>
+                <div class="card-body">
+                    <h5>How It Works</h5>
+                    <p>The PASO_GEP_CNV_MUT model predicts drug sensitivity (IC50 values) by analyzing:</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6><i class="fas fa-capsules me-2"></i> Drug Information</h6>
+                                    <p>The model processes SMILES (Simplified Molecular Input Line Entry System) representations of drug molecules using graph neural networks to extract meaningful features from the molecular structure.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6><i class="fas fa-dna me-2"></i> Multi-Omics Data</h6>
+                                    <p>The model analyzes three types of omics data for cell lines:</p>
+                                    <ul>
+                                        <li><strong>GEP:</strong> Gene Expression Profiles</li>
+                                        <li><strong>CNV:</strong> Copy Number Variations</li>
+                                        <li><strong>MUT:</strong> Mutation Data</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5>Understanding the Results</h5>
+                    <p>The model outputs two key values:</p>
+                    <ul>
+                        <li><strong>IC50:</strong> The concentration of a drug required to inhibit cell growth by 50%. Lower values indicate higher drug sensitivity.</li>
+                        <li><strong>Log IC50:</strong> The logarithmic transformation of IC50, which is often used for better numerical stability.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Handle sample prediction form submission
+        $('#sample-prediction-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading indicator
+            $('#prediction-results').html(`
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Making prediction...</p>
+                </div>
+            `);
+            
+            // Get form data
+            const formData = new FormData(this);
+            
+            // Make API request
+            $.ajax({
+                url: '/api/predict',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        // Display prediction results
+                        displayPredictionResults(response);
+                    } else {
+                        // Display error message
+                        $('#prediction-results').html(`
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i> ${response.message}
+                            </div>
+                        `);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Display error message
+                    $('#prediction-results').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i> Error making prediction: ${error}
+                        </div>
+                    `);
+                }
+            });
+        });
+        
+        // Handle custom prediction form submission
+        $('#custom-prediction-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading indicator
+            $('#prediction-results').html(`
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Making prediction...</p>
+                </div>
+            `);
+            
+            // Get form data
+            const formData = new FormData(this);
+            
+            // Make API request
+            $.ajax({
+                url: '/api/predict',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        // Display prediction results
+                        displayPredictionResults(response);
+                    } else {
+                        // Display error message
+                        $('#prediction-results').html(`
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i> ${response.message}
+                            </div>
+                        `);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Display error message
+                    $('#prediction-results').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i> Error making prediction: ${error}
+                        </div>
+                    `);
+                }
+            });
+        });
+        
+        // Function to display prediction results
+        function displayPredictionResults(response) {
+            const prediction = response.prediction;
+            
+            // Format IC50 values
+            const ic50 = parseFloat(prediction.ic50).toFixed(4);
+            const logIC50 = parseFloat(prediction.log_ic50).toFixed(4);
+            
+            // Determine sensitivity level
+            let sensitivityLevel = 'Medium';
+            let sensitivityColor = 'warning';
+            
+            if (ic50 < 0.3) {
+                sensitivityLevel = 'High';
+                sensitivityColor = 'success';
+            } else if (ic50 > 0.7) {
+                sensitivityLevel = 'Low';
+                sensitivityColor = 'danger';
+            }
+            
+            // Create results HTML
+            const resultsHtml = `
+                <div class="text-center mb-4">
+                    <h5>Prediction for ${prediction.drug} on ${prediction.cell_line}</h5>
+                    <p class="text-muted">${response.message}</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="metric-card">
+                            <div class="value">${ic50}</div>
+                            <div class="label">IC50 Value</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="metric-card">
+                            <div class="value">${logIC50}</div>
+                            <div class="label">Log IC50</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Sensitivity Level</h6>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-${sensitivityColor}" role="progressbar" style="width: ${ic50 * 100}%;" aria-valuenow="${ic50 * 100}" aria-valuemin="0" aria-valuemax="100">
+                            ${sensitivityLevel} (${(ic50 * 100).toFixed(1)}%)
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small>High Sensitivity</small>
+                        <small>Low Sensitivity</small>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Interpretation</h6>
+                    <p>
+                        The model predicts that ${prediction.drug} has a <span class="text-${sensitivityColor}">${sensitivityLevel.toLowerCase()} effectiveness</span> against ${prediction.cell_line}.
+                        ${sensitivityLevel === 'High' 
+                            ? 'This suggests the cell line is highly sensitive to the drug, potentially responding well to treatment.' 
+                            : sensitivityLevel === 'Low' 
+                                ? 'This suggests the cell line has low sensitivity to the drug, potentially indicating resistance.' 
+                                : 'This suggests the cell line has moderate sensitivity to the drug.'}
+                    </p>
+                </div>
+            `;
+            
+            // Update results container
+            $('#prediction-results').html(resultsHtml);
+        }
+    });
+</script>
+{% endblock %}

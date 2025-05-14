@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Data Explorer{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Data Explorer</h1>
+    
+    <div class="row">
+        <!-- Available Data Files -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-file-alt me-2"></i> Available Data Files
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% if data_files %}
+                            {% for file in data_files %}
+                                <a href="{{ url_for('view_data', filename=file) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    {{ file }}
+                                    <span class="badge bg-primary rounded-pill">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-warning">
+                                No data files found. Please check the data directory.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Overview -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-2"></i> Data Overview
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Dataset Information</h5>
+                    <p>The model uses the following data types:</p>
+                    
+                    <div class="accordion" id="dataAccordion">
+                        <!-- Drug Sensitivity Data -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                    Drug Sensitivity Data
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#dataAccordion">
+                                <div class="accordion-body">
+                                    <p>Contains IC50 values for drug-cell line pairs. IC50 is the concentration of a drug required to inhibit cell growth by 50%.</p>
+                                    <p><strong>Key files:</strong> MixedSet_train_Fold*.csv, MixedSet_test_Fold*.csv</p>
+                                    <p><strong>Columns:</strong> drug, cell_line, IC50</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SMILES Data -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                    Drug SMILES Data
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#dataAccordion">
+                                <div class="accordion-body">
+                                    <p>SMILES (Simplified Molecular Input Line Entry System) representations of drug molecules.</p>
+                                    <p><strong>Key file:</strong> CCLE-GDSC-SMILES.csv</p>
+                                    <p><strong>Processing:</strong> Converted to graph representations with nodes (atoms) and edges (bonds)</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Omics Data -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    Triple-Omics Data
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#dataAccordion">
+                                <div class="accordion-body">
+                                    <p>Three types of omics data for cell lines:</p>
+                                    <ul>
+                                        <li><strong>GEP (Gene Expression Profiles):</strong> GEP_Wilcoxon_Test_Analysis_Log10_P_value_C2_KEGG_MEDICUS.csv</li>
+                                        <li><strong>CNV (Copy Number Variations):</strong> CNV_Cardinality_Analysis_of_Variance_C2_KEGG_MEDICUS.csv</li>
+                                        <li><strong>MUT (Mutation Data):</strong> MUT_Cardinality_Analysis_of_Variance_C2_KEGG_MEDICUS.csv</li>
+                                    </ul>
+                                    <p><strong>Processing:</strong> Standardized and organized by pathways</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Data Processing Pipeline -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-cogs me-2"></i> Data Processing Pipeline
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Drug Data Processing</h5>
+                            <ol class="list-group list-group-numbered mb-4">
+                                <li class="list-group-item">Load SMILES strings from CSV file</li>
+                                <li class="list-group-item">Convert to RDKit molecule objects</li>
+                                <li class="list-group-item">Extract atom features and adjacency matrices</li>
+                                <li class="list-group-item">Create bond information (type, source, target)</li>
+                                <li class="list-group-item">Pad sequences to fixed length (256)</li>
+                            </ol>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Omics Data Processing</h5>
+                            <ol class="list-group list-group-numbered mb-4">
+                                <li class="list-group-item">Load GEP, CNV, and MUT data for cell lines</li>
+                                <li class="list-group-item">Apply standardization (optional)</li>
+                                <li class="list-group-item">Organize by pathways (619 pathways)</li>
+                                <li class="list-group-item">Convert to tensor format</li>
+                            </ol>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mt-3">Drug Sensitivity Processing</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ol class="list-group list-group-numbered mb-4">
+                                <li class="list-group-item">Load IC50 values from CSV files</li>
+                                <li class="list-group-item">Apply min-max scaling (optional)</li>
+                                <li class="list-group-item">Convert to log-scale for better numerical stability</li>
+                            </ol>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="ic50-transformation" class="chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Sample data for IC50 transformation visualization
+        const original = Array.from({length: 100}, (_, i) => i + 1);
+        const minMaxScaled = original.map(x => (x - 1) / 99);
+        const logTransformed = original.map(x => Math.log10(x));
+        
+        // Create IC50 transformation plot
+        const trace1 = {
+            x: original,
+            y: original,
+            mode: 'lines',
+            name: 'Original IC50',
+            line: {
+                color: '#1f77b4',
+                width: 2
+            }
+        };
+        
+        const trace2 = {
+            x: original,
+            y: minMaxScaled,
+            mode: 'lines',
+            name: 'Min-Max Scaled',
+            line: {
+                color: '#ff7f0e',
+                width: 2
+            }
+        };
+        
+        const trace3 = {
+            x: original,
+            y: logTransformed,
+            mode: 'lines',
+            name: 'Log Transformed',
+            line: {
+                color: '#2ca02c',
+                width: 2
+            }
+        };
+        
+        const layout = {
+            title: 'IC50 Transformations',
+            xaxis: {
+                title: 'Original IC50'
+            },
+            yaxis: {
+                title: 'Transformed Value'
+            },
+            margin: {
+                l: 50,
+                r: 50,
+                b: 50,
+                t: 50,
+                pad: 4
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2
+            }
+        };
+        
+        Plotly.newPlot('ic50-transformation', [trace1, trace2, trace3], layout);
+    });
+</script>
+{% endblock %}

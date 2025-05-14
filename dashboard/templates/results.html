@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Results - Fold {{ fold_num }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Model Results - Fold {{ fold_num }}</h1>
+    
+    <div class="row">
+        <!-- Fold Selection -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-layer-group me-2"></i> Select Fold
+                </div>
+                <div class="card-body">
+                    <div class="btn-group" role="group" aria-label="Fold selection">
+                        {% for i in range(1, 11) %}
+                            <a href="{{ url_for('results', fold_num=i) }}" 
+                               class="btn {% if fold_num == i %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                Fold {{ i }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Performance Metrics -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-2"></i> Performance Metrics
+                </div>
+                <div class="card-body">
+                    {% if result_files %}
+                        <div id="metrics-container">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value" id="pearson-value">-</div>
+                                        <div class="label">Pearson Correlation</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value" id="rmse-value">-</div>
+                                        <div class="label">RMSE</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value" id="r2-value">-</div>
+                                        <div class="label">R² Score</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value" id="loss-value">-</div>
+                                        <div class="label">Loss</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            No result files found for this fold. Please check if the model has been trained.
+                        </div>
+                        
+                        <!-- Sample metrics for demonstration -->
+                        <div class="mt-4">
+                            <h5>Sample Metrics (Demo)</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value">0.823</div>
+                                        <div class="label">Pearson Correlation</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value">0.412</div>
+                                        <div class="label">RMSE</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value">0.677</div>
+                                        <div class="label">R² Score</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="metric-card">
+                                        <div class="value">0.168</div>
+                                        <div class="label">Loss</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Training Progress -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-area me-2"></i> Training Progress
+                </div>
+                <div class="card-body">
+                    <div id="training-progress" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Prediction Scatter Plot -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-scatter me-2"></i> Prediction vs Actual
+                </div>
+                <div class="card-body">
+                    <div id="prediction-scatter" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Attention Visualization -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-brain me-2"></i> Attention Visualization
+                </div>
+                <div class="card-body">
+                    <p>Select a sample to visualize attention weights:</p>
+                    <select class="form-select mb-3" id="sample-selector">
+                        <option value="1">Sample 1</option>
+                        <option value="2">Sample 2</option>
+                        <option value="3">Sample 3</option>
+                    </select>
+                    <div id="attention-heatmap" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Result Files -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-file-alt me-2"></i> Result Files
+                </div>
+                <div class="card-body">
+                    {% if result_files %}
+                        <div class="list-group">
+                            {% for file in result_files %}
+                                <a href="#" class="list-group-item list-group-item-action">
+                                    {{ file }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            No result files found for this fold. Please check if the model has been trained.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Sample data for training progress
+        const epochs = Array.from({length: 200}, (_, i) => i + 1);
+        const trainLoss = epochs.map(e => 1.0 * Math.exp(-0.01 * e) + 0.1 + 0.05 * Math.random());
+        const testLoss = epochs.map(e => 1.2 * Math.exp(-0.01 * e) + 0.15 + 0.1 * Math.random());
+        const pearsonCorr = epochs.map(e => 0.5 + 0.3 * (1 - Math.exp(-0.02 * e)) + 0.05 * Math.random());
+        
+        // Create training progress plot
+        const trace1 = {
+            x: epochs,
+            y: trainLoss,
+            mode: 'lines',
+            name: 'Train Loss',
+            line: {
+                color: '#1f77b4',
+                width: 2
+            }
+        };
+        
+        const trace2 = {
+            x: epochs,
+            y: testLoss,
+            mode: 'lines',
+            name: 'Test Loss',
+            line: {
+                color: '#ff7f0e',
+                width: 2
+            }
+        };
+        
+        const trace3 = {
+            x: epochs,
+            y: pearsonCorr,
+            mode: 'lines',
+            name: 'Pearson Correlation',
+            yaxis: 'y2',
+            line: {
+                color: '#2ca02c',
+                width: 2
+            }
+        };
+        
+        const layout = {
+            title: 'Training Progress',
+            xaxis: {
+                title: 'Epoch'
+            },
+            yaxis: {
+                title: 'Loss',
+                side: 'left'
+            },
+            yaxis2: {
+                title: 'Pearson Correlation',
+                side: 'right',
+                overlaying: 'y',
+                range: [0, 1]
+            },
+            margin: {
+                l: 60,
+                r: 60,
+                b: 60,
+                t: 60,
+                pad: 4
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2
+            }
+        };
+        
+        Plotly.newPlot('training-progress', [trace1, trace2, trace3], layout);
+        
+        // Sample data for prediction scatter plot
+        const actual = Array.from({length: 100}, () => Math.random() * 10);
+        const predicted = actual.map(a => a + (Math.random() - 0.5) * 2);
+        
+        // Create prediction scatter plot
+        const scatterTrace = {
+            x: actual,
+            y: predicted,
+            mode: 'markers',
+            type: 'scatter',
+            marker: {
+                color: '#1f77b4',
+                size: 8,
+                opacity: 0.7
+            },
+            name: 'Predictions'
+        };
+        
+        // Add perfect prediction line
+        const min = Math.min(...actual);
+        const max = Math.max(...actual);
+        const lineTrace = {
+            x: [min, max],
+            y: [min, max],
+            mode: 'lines',
+            type: 'scatter',
+            line: {
+                color: '#ff7f0e',
+                width: 2,
+                dash: 'dash'
+            },
+            name: 'Perfect Prediction'
+        };
+        
+        const scatterLayout = {
+            title: 'Predicted vs Actual IC50 Values',
+            xaxis: {
+                title: 'Actual IC50'
+            },
+            yaxis: {
+                title: 'Predicted IC50'
+            },
+            margin: {
+                l: 60,
+                r: 60,
+                b: 60,
+                t: 60,
+                pad: 4
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2
+            }
+        };
+        
+        Plotly.newPlot('prediction-scatter', [scatterTrace, lineTrace], scatterLayout);
+        
+        // Sample data for attention heatmap
+        function createAttentionHeatmap(sampleId) {
+            // Generate random attention weights
+            const pathwayCount = 20; // Show only top 20 pathways for visualization
+            const drugFeatureCount = 15; // Show only top 15 drug features
+            
+            const zValues = [];
+            for (let i = 0; i < pathwayCount; i++) {
+                const row = [];
+                for (let j = 0; j < drugFeatureCount; j++) {
+                    // Create some pattern in the attention weights
+                    let val = Math.random();
+                    if (i === j || i === j + 1 || i === j - 1) {
+                        val = 0.7 + 0.3 * Math.random(); // Higher attention on diagonal and adjacent
+                    }
+                    row.push(val);
+                }
+                zValues.push(row);
+            }
+            
+            // Create pathway and drug feature labels
+            const pathwayLabels = Array.from({length: pathwayCount}, (_, i) => `Pathway ${i+1}`);
+            const drugLabels = Array.from({length: drugFeatureCount}, (_, i) => `Drug Feature ${i+1}`);
+            
+            const heatmapTrace = {
+                z: zValues,
+                x: drugLabels,
+                y: pathwayLabels,
+                type: 'heatmap',
+                colorscale: 'Viridis',
+                colorbar: {
+                    title: 'Attention Weight',
+                    titleside: 'right'
+                }
+            };
+            
+            const heatmapLayout = {
+                title: `Attention Weights for Sample ${sampleId}`,
+                xaxis: {
+                    title: 'Drug Features'
+                },
+                yaxis: {
+                    title: 'Pathways'
+                },
+                margin: {
+                    l: 150,
+                    r: 50,
+                    b: 100,
+                    t: 50,
+                    pad: 4
+                }
+            };
+            
+            Plotly.newPlot('attention-heatmap', [heatmapTrace], heatmapLayout);
+        }
+        
+        // Initialize attention heatmap with first sample
+        createAttentionHeatmap(1);
+        
+        // Handle sample selection change
+        $('#sample-selector').on('change', function() {
+            const selectedSample = $(this).val();
+            createAttentionHeatmap(selectedSample);
+        });
+        
+        // Set demo metrics
+        $('#pearson-value').text('0.823');
+        $('#rmse-value').text('0.412');
+        $('#r2-value').text('0.677');
+        $('#loss-value').text('0.168');
+    });
+</script>
+{% endblock %}

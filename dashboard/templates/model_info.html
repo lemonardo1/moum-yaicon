@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Model Architecture - Fold {{ fold_num }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Model Architecture - Fold {{ fold_num }}</h1>
+    
+    <div class="row">
+        <!-- Fold Selection -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-layer-group me-2"></i> Select Fold
+                </div>
+                <div class="card-body">
+                    <div class="btn-group" role="group" aria-label="Fold selection">
+                        {% for i in range(1, 11) %}
+                            <a href="{{ url_for('model_info', fold_num=i) }}" 
+                               class="btn {% if fold_num == i %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                Fold {{ i }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Model Parameters -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-cogs me-2"></i> Model Parameters
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for key, value in params.items() %}
+                                <tr>
+                                    <td>{{ key }}</td>
+                                    <td>
+                                        {% if value is mapping %}
+                                            <pre>{{ value | tojson(indent=2) }}</pre>
+                                        {% elif value is iterable and value is not string %}
+                                            {{ value | tojson }}
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Model Visualization -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-project-diagram me-2"></i> Model Architecture Visualization
+                </div>
+                <div class="card-body">
+                    <div id="model-architecture-diagram" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Architecture Details -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-sitemap me-2"></i> Architecture Details
+                </div>
+                <div class="card-body">
+                    <h5>PASO_GEP_CNV_MUT Model</h5>
+                    <p>This model combines drug molecular information with multi-omics data to predict drug sensitivity.</p>
+                    
+                    <h6>Key Components:</h6>
+                    <ul>
+                        <li><strong>Drug Embedding Model:</strong> Processes SMILES representations using graph neural networks</li>
+                        <li><strong>Omics Processing:</strong> Separate pathways for GEP, CNV, and MUT data</li>
+                        <li><strong>Attention Mechanisms:</strong> 
+                            <ul>
+                                <li>Molecule-GEP attention: {{ params.get('molecule_gep_heads', [2]) }}</li>
+                                <li>Molecule-CNV attention: {{ params.get('molecule_cnv_heads', [2]) }}</li>
+                                <li>Molecule-MUT attention: {{ params.get('molecule_mut_heads', [2]) }}</li>
+                            </ul>
+                        </li>
+                        <li><strong>Dense Layers:</strong> {{ params.get('stacked_dense_hidden_sizes', [1024, 512]) }}</li>
+                        <li><strong>Dropout:</strong> {{ params.get('dropout', 0.5) }}</li>
+                        <li><strong>Loss Function:</strong> {{ params.get('loss_fn', 'mse') }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Fetch model architecture data
+        $.getJSON("{{ url_for('model_architecture', fold_num=fold_num) }}", function(data) {
+            // Create a Sankey diagram to visualize the model architecture
+            const nodes = [
+                // Input nodes
+                {node: 0, name: "Drug SMILES"},
+                {node: 1, name: "GEP Data"},
+                {node: 2, name: "CNV Data"},
+                {node: 3, name: "MUT Data"},
+                
+                // Embedding/Processing nodes
+                {node: 4, name: "Drug Embedding"},
+                {node: 5, name: "GEP Processing"},
+                {node: 6, name: "CNV Processing"},
+                {node: 7, name: "MUT Processing"},
+                
+                // Attention nodes
+                {node: 8, name: "Drug-GEP Attention"},
+                {node: 9, name: "Drug-CNV Attention"},
+                {node: 10, name: "Drug-MUT Attention"},
+                
+                // Dense layers
+                {node: 11, name: "Combined Features"},
+                {node: 12, name: "Dense Layer 1"},
+                {node: 13, name: "Dense Layer 2"},
+                
+                // Output
+                {node: 14, name: "IC50 Prediction"}
+            ];
+            
+            const links = [
+                // Input to embedding/processing
+                {source: 0, target: 4, value: 1},
+                {source: 1, target: 5, value: 1},
+                {source: 2, target: 6, value: 1},
+                {source: 3, target: 7, value: 1},
+                
+                // Embedding/processing to attention
+                {source: 4, target: 8, value: 1},
+                {source: 4, target: 9, value: 1},
+                {source: 4, target: 10, value: 1},
+                {source: 5, target: 8, value: 1},
+                {source: 6, target: 9, value: 1},
+                {source: 7, target: 10, value: 1},
+                
+                // Attention to combined features
+                {source: 8, target: 11, value: 1},
+                {source: 9, target: 11, value: 1},
+                {source: 10, target: 11, value: 1},
+                
+                // Dense layers
+                {source: 11, target: 12, value: 1},
+                {source: 12, target: 13, value: 1},
+                {source: 13, target: 14, value: 1}
+            ];
+            
+            const sankeyData = {
+                type: "sankey",
+                orientation: "h",
+                node: {
+                    pad: 15,
+                    thickness: 20,
+                    line: {
+                        color: "black",
+                        width: 0.5
+                    },
+                    label: nodes.map(n => n.name),
+                    color: [
+                        "#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", // Inputs
+                        "#2ca02c", "#98df8a", "#d62728", "#ff9896", // Processing
+                        "#9467bd", "#c5b0d5", "#8c564b",            // Attention
+                        "#c49c94", "#e377c2", "#f7b6d2",            // Dense
+                        "#7f7f7f"                                   // Output
+                    ]
+                },
+                link: {
+                    source: links.map(l => l.source),
+                    target: links.map(l => l.target),
+                    value: links.map(l => l.value)
+                }
+            };
+            
+            const layout = {
+                title: "PASO_GEP_CNV_MUT Architecture",
+                font: {
+                    size: 10
+                },
+                height: 500,
+                margin: {
+                    l: 0,
+                    r: 0,
+                    b: 0,
+                    t: 40,
+                    pad: 4
+                }
+            };
+            
+            Plotly.newPlot('model-architecture-diagram', [sankeyData], layout);
+        });
+    });
+</script>
+{% endblock %}

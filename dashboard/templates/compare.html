@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Results{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Compare Results Across Folds</h1>
+    
+    <div class="row">
+        <!-- Fold Selection -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-layer-group me-2"></i> Select Folds to Compare
+                </div>
+                <div class="card-body">
+                    <form id="compare-form">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label class="form-label">Select Folds</label>
+                                    <div class="d-flex flex-wrap" id="fold-checkboxes">
+                                        {% for fold in folds %}
+                                            <div class="form-check me-3 mb-2">
+                                                <input class="form-check-input fold-checkbox" type="checkbox" value="{{ fold }}" id="fold-{{ fold }}" {% if loop.index <= 3 %}checked{% endif %}>
+                                                <label class="form-check-label" for="fold-{{ fold }}">
+                                                    Fold {{ fold }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="metric-select" class="form-label">Primary Metric</label>
+                                    <select class="form-select" id="metric-select">
+                                        <option value="pearson" selected>Pearson Correlation</option>
+                                        <option value="rmse">RMSE</option>
+                                        <option value="r2">R² Score</option>
+                                        <option value="loss">Loss</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sync-alt me-2"></i> Compare Folds
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Comparison Chart -->
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-2"></i> Performance Comparison
+                </div>
+                <div class="card-body">
+                    <div id="comparison-chart" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Metrics Table -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-table me-2"></i> Metrics Summary
+                </div>
+                <div class="card-body">
+                    <div id="metrics-table">
+                        <p class="text-center text-muted">Select folds to compare</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Detailed Comparison -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-2"></i> Detailed Metrics Comparison
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div id="pearson-chart" class="chart-container"></div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div id="rmse-chart" class="chart-container"></div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div id="r2-chart" class="chart-container"></div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div id="loss-chart" class="chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Handle form submission
+        $('#compare-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            // Get selected folds
+            const selectedFolds = [];
+            $('.fold-checkbox:checked').each(function() {
+                selectedFolds.push(parseInt($(this).val()));
+            });
+            
+            // Get selected metric
+            const selectedMetric = $('#metric-select').val();
+            
+            // Check if at least one fold is selected
+            if (selectedFolds.length === 0) {
+                alert('Please select at least one fold to compare');
+                return;
+            }
+            
+            // Make API request
+            $.ajax({
+                url: '/api/compare_folds',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    folds: selectedFolds,
+                    metric: selectedMetric
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        // Update charts and tables
+                        updateComparisonChart(response.data, selectedMetric);
+                        updateMetricsTable(response.data);
+                        updateDetailedCharts(response.data);
+                    } else {
+                        alert('Error: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('Error comparing folds: ' + error);
+                }
+            });
+        });
+        
+        // Function to update comparison chart
+        function updateComparisonChart(data, selectedMetric) {
+            const folds = data.folds.map(fold => 'Fold ' + fold);
+            const metrics = data.metrics[selectedMetric];
+            
+            // Determine color based on metric
+            let color = '#3498db';  // Default blue
+            if (selectedMetric === 'pearson' || selectedMetric === 'r2') {
+                color = '#2ecc71';  // Green for metrics where higher is better
+            } else if (selectedMetric === 'rmse' || selectedMetric === 'loss') {
+                color = '#e74c3c';  // Red for metrics where lower is better
+            }
+            
+            // Create bar chart
+            const trace = {
+                x: folds,
+                y: metrics,
+                type: 'bar',
+                marker: {
+                    color: color
+                }
+            };
+            
+            const layout = {
+                title: getMetricTitle(selectedMetric) + ' Comparison',
+                xaxis: {
+                    title: 'Fold'
+                },
+                yaxis: {
+                    title: getMetricTitle(selectedMetric)
+                },
+                margin: {
+                    l: 60,
+                    r: 40,
+                    b: 60,
+                    t: 60,
+                    pad: 4
+                }
+            };
+            
+            Plotly.newPlot('comparison-chart', [trace], layout);
+        }
+        
+        // Function to update metrics table
+        function updateMetricsTable(data) {
+            const folds = data.folds;
+            const metrics = data.metrics;
+            
+            let tableHtml = `
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Fold</th>
+                            <th>Pearson</th>
+                            <th>RMSE</th>
+                            <th>R²</th>
+                            <th>Loss</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            for (let i = 0; i < folds.length; i++) {
+                tableHtml += `
+                    <tr>
+                        <td>Fold ${folds[i]}</td>
+                        <td>${metrics.pearson[i]}</td>
+                        <td>${metrics.rmse[i]}</td>
+                        <td>${metrics.r2[i]}</td>
+                        <td>${metrics.loss[i]}</td>
+                    </tr>
+                `;
+            }
+            
+            // Add average row
+            const avgPearson = metrics.pearson.reduce((a, b) => a + b, 0) / metrics.pearson.length;
+            const avgRmse = metrics.rmse.reduce((a, b) => a + b, 0) / metrics.rmse.length;
+            const avgR2 = metrics.r2.reduce((a, b) => a + b, 0) / metrics.r2.length;
+            const avgLoss = metrics.loss.reduce((a, b) => a + b, 0) / metrics.loss.length;
+            
+            tableHtml += `
+                    <tr class="table-primary">
+                        <td><strong>Average</strong></td>
+                        <td><strong>${avgPearson.toFixed(3)}</strong></td>
+                        <td><strong>${avgRmse.toFixed(3)}</strong></td>
+                        <td><strong>${avgR2.toFixed(3)}</strong></td>
+                        <td><strong>${avgLoss.toFixed(3)}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            `;
+            
+            $('#metrics-table').html(tableHtml);
+        }
+        
+        // Function to update detailed charts
+        function updateDetailedCharts(data) {
+            const folds = data.folds.map(fold => 'Fold ' + fold);
+            const metrics = data.metrics;
+            
+            // Create radar chart for all metrics
+            const radarTrace = {
+                type: 'scatterpolar',
+                r: [
+                    ...metrics.pearson,
+                    ...metrics.rmse.map(v => 1 - v),  // Invert RMSE so higher is better
+                    ...metrics.r2,
+                    ...metrics.loss.map(v => 1 - v)   // Invert loss so higher is better
+                ],
+                theta: [
+                    ...Array(folds.length).fill('Pearson'),
+                    ...Array(folds.length).fill('RMSE'),
+                    ...Array(folds.length).fill('R²'),
+                    ...Array(folds.length).fill('Loss')
+                ],
+                mode: 'markers',
+                marker: {
+                    size: 10,
+                    color: [
+                        ...Array(folds.length).fill('#3498db'),
+                        ...Array(folds.length).fill('#e74c3c'),
+                        ...Array(folds.length).fill('#2ecc71'),
+                        ...Array(folds.length).fill('#f39c12')
+                    ]
+                },
+                text: [
+                    ...folds.map(fold => `${fold}: ${metrics.pearson[folds.indexOf(fold) % folds.length]}`),
+                    ...folds.map(fold => `${fold}: ${metrics.rmse[folds.indexOf(fold) % folds.length]}`),
+                    ...folds.map(fold => `${fold}: ${metrics.r2[folds.indexOf(fold) % folds.length]}`),
+                    ...folds.map(fold => `${fold}: ${metrics.loss[folds.indexOf(fold) % folds.length]}`)
+                ]
+            };
+            
+            const radarLayout = {
+                polar: {
+                    radialaxis: {
+                        visible: true,
+                        range: [0, 1]
+                    }
+                },
+                showlegend: false,
+                margin: {
+                    l: 40,
+                    r: 40,
+                    b: 40,
+                    t: 40,
+                    pad: 4
+                }
+            };
+            
+            // Create individual charts for each metric
+            createMetricChart('pearson-chart', 'Pearson Correlation', folds, metrics.pearson, '#3498db');
+            createMetricChart('rmse-chart', 'RMSE', folds, metrics.rmse, '#e74c3c');
+            createMetricChart('r2-chart', 'R² Score', folds, metrics.r2, '#2ecc71');
+            createMetricChart('loss-chart', 'Loss', folds, metrics.loss, '#f39c12');
+        }
+        
+        // Function to create a chart for a specific metric
+        function createMetricChart(elementId, title, folds, values, color) {
+            const trace = {
+                x: folds,
+                y: values,
+                type: 'bar',
+                marker: {
+                    color: color
+                }
+            };
+            
+            const layout = {
+                title: title,
+                xaxis: {
+                    title: 'Fold'
+                },
+                yaxis: {
+                    title: title
+                },
+                margin: {
+                    l: 60,
+                    r: 40,
+                    b: 60,
+                    t: 60,
+                    pad: 4
+                }
+            };
+            
+            Plotly.newPlot(elementId, [trace], layout);
+        }
+        
+        // Helper function to get metric title
+        function getMetricTitle(metric) {
+            switch (metric) {
+                case 'pearson':
+                    return 'Pearson Correlation';
+                case 'rmse':
+                    return 'RMSE';
+                case 'r2':
+                    return 'R² Score';
+                case 'loss':
+                    return 'Loss';
+                default:
+                    return metric;
+            }
+        }
+        
+        // Trigger form submission on page load
+        $('#compare-form').trigger('submit');
+    });
+</script>
+{% endblock %}
